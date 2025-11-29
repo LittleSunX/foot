@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>比赛详情</title>
+    <meta charset="UTF-8">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+</head>
+<style>
+    #matchDetails {
+        font-size: 0.8em; /* 缩小字体大小 */
+    }
+
+    .table-container {
+        overflow-x: auto; /* 添加水平滚动条 */
+        max-width: 100%; /* 限制表格宽度为容器宽度 */
+    }
+</style>
+<body>
+<div class="container">
+    <h2 class="mt-4">比赛详情</h2>
+    <form id="searchForm" class="mb-4">
+        <input type="text" id="companyName" placeholder="公司名称"/>
+        <input type="text" id="upDownValue" placeholder="升降值"/>
+        <input type="number" id="initCalculationValue1" placeholder="初始计算值1"/>
+        <input type="number" id="initCalculationValue2" placeholder="初始计算值2"/>
+        <input type="number" id="initCalculationValue3" placeholder="初始计算值3"/>
+        <input type="number" id="finalCalculationValue1" placeholder="最终计算值1"/>
+        <input type="number" id="finalCalculationValue2" placeholder="最终计算值2"/>
+        <input type="number" id="finalCalculationValue3" placeholder="最终计算值3"/>
+        <!-- ...其他输入框... -->
+        <button type="submit">查询</button>
+    </form>
+    <div class="table-container">  <!-- 添加此div用于添加滚动条 -->
+        <table id="matchDetails" class="table table-striped mt-4">
+            <thead class="thead-dark">
+            <tr>
+                <th>初始计算值1</th>
+                <th>初始计算值2</th>
+                <th>初始计算值3</th>
+                <th>最终计算值1</th>
+                <th>最终计算值2</th>
+                <th>最终计算值3</th>
+                <th>升降值</th>
+                <th>主键ID</th>
+                <th>公司ID</th>
+                <th>公司名称</th>
+                <th>初始主胜</th>
+                <th>初始和</th>
+                <th>初始客胜</th>
+                <th>初始主胜率</th>
+                <th>初始和率</th>
+                <th>初始客胜率</th>
+                <th>初始返还率</th>
+                <th>初始凯利1</th>
+                <th>初始凯利2</th>
+                <th>初始凯利3</th>
+                <th>最终主胜</th>
+                <th>最终和</th>
+                <th>最终客胜</th>
+                <th>最终主胜率</th>
+                <th>最终和率</th>
+                <th>最终客胜率</th>
+                <th>最终返还率</th>
+                <th>最终凯利1</th>
+                <th>最终凯利2</th>
+                <th>最终凯利3</th>
+                <th>最初让球指数</th>
+                <th>最初进球指数</th>
+                <th>最终让球指数</th>
+                <th>最终进球指数</th>
+                <th>主表id</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+
+    function fetchAndDisplayData() {
+
+        // 清空表格内容
+        const tableBody = document.querySelector('#matchDetails tbody');
+        while (tableBody.firstChild) {
+            tableBody.removeChild(tableBody.firstChild);
+        }
+
+        const id = new URLSearchParams(window.location.search).get('id');
+
+        // 从输入框读取查询参数
+        const initCalculationValue1 = document.getElementById('initCalculationValue1').value;
+        const initCalculationValue2 = document.getElementById('initCalculationValue2').value;
+        const initCalculationValue3 = document.getElementById('initCalculationValue3').value;
+        const finalCalculationValue1 = document.getElementById('finalCalculationValue1').value;
+        const finalCalculationValue2 = document.getElementById('finalCalculationValue2').value;
+        const finalCalculationValue3 = document.getElementById('finalCalculationValue3').value;
+        const upDownValue = document.getElementById('upDownValue').value;
+        const companyName = document.getElementById('companyName').value;
+
+        // 添加查询参数到API URL
+        const apiUrl = new URL('http://localhost:8080/footmatch/odds/' + id);
+        if (initCalculationValue1) apiUrl.searchParams.append('initCalculationValue1', initCalculationValue1);
+        if (initCalculationValue2) apiUrl.searchParams.append('initCalculationValue2', initCalculationValue2);
+        if (initCalculationValue3) apiUrl.searchParams.append('initCalculationValue3', initCalculationValue3);
+        if (finalCalculationValue1) apiUrl.searchParams.append('finalCalculationValue1', finalCalculationValue1);
+        if (finalCalculationValue2) apiUrl.searchParams.append('finalCalculationValue2', finalCalculationValue2);
+        if (finalCalculationValue3) apiUrl.searchParams.append('finalCalculationValue3', finalCalculationValue3);
+        if (upDownValue) apiUrl.searchParams.append('upDownValue', upDownValue);
+        if (companyName) apiUrl.searchParams.append('companyName', companyName);
+
+        console.log(apiUrl.toString());
+
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector('#matchDetails tbody');
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+
+                    // 通过键获取item中的值
+                    const keys = ["initCalculationValue1", "initCalculationValue2", "initCalculationValue3",
+                        "finalCalculationValue1", "finalCalculationValue2", "finalCalculationValue3",
+                        "upDownValue", "id", "companyId", "companyName", "initHomeWin", "initDraw",
+                        "initAwayWin", "initHomeWinRate", "initDrawRate", "initAwayWinRate", "initReturnRate",
+                        "initKelly1", "initKelly2", "initKelly3", "finalHomeWin", "finalDraw", "finalAwayWin",
+                        "finalHomeWinRate", "finalDrawRate", "finalAwayWinRate", "finalReturnRate", "finalKelly1",
+                        "finalKelly2", "finalKelly3", "initAsianHandicap", "initOverUnder", "finalAsianHandicap",
+                        "finalOverUnder", "competitionId"];
+
+                    keys.forEach(key => {
+                        const cell = document.createElement('td');
+                        cell.textContent = item[key];
+                        row.appendChild(cell);
+                    });
+
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', function (event) {
+        // 阻止表单的默认提交行为
+        event.preventDefault();
+
+        // 调用数据获取并显示函数
+        fetchAndDisplayData();
+    });
+    // 页面加载完成后，调用数据获取并显示函数
+    window.onload = fetchAndDisplayData;
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>足球比赛数据</title>
+    <meta charset="UTF-8">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <!-- 引入 jQuery -->
+    <script src="/js/jquery.min.js"></script>
+
+    <style>
+        #pagination {
+            overflow-x: auto; /* 水平滚动条 */
+            max-width: 100%; /* 最大宽度 */
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 class="mt-4">足球比赛数据</h2>
+    <input type="text" id="searchLeague" placeholder="赛区名称"/>
+    <input type="text" id="searchSquare" placeholder="让球方"/>
+    <input type="text" id="companyName" placeholder="公司名称"/>
+    <input type="text" id="upDownValue" placeholder="升降值"/>
+    <input type="number" id="initCalculationValue1" placeholder="初始计算值1"/>
+    <input type="number" id="initCalculationValue2" placeholder="初始计算值2"/>
+    <input type="number" id="initCalculationValue3" placeholder="初始计算值3"/>
+    <input type="number" id="finalCalculationValue1" placeholder="最终计算值1"/>
+    <input type="number" id="finalCalculationValue2" placeholder="最终计算值2"/>
+    <input type="number" id="finalCalculationValue3" placeholder="最终计算值3"/>
+    <button id="searchBtn" class="btn btn-primary">查询</button>
+    <table id="matches" class="table table-striped mt-4">
+        <thead class="thead-dark">
+        <tr>
+            <th>操作</th>
+            <th>比赛场次ID</th>
+            <th>赛区名称</th>
+            <th>比赛时间</th>
+            <th>比赛状态</th>
+            <th>主队名称</th>
+            <th>总比分</th>
+            <th>客队名称</th>
+            <th>半场比分</th>
+            <th>让球方</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <!-- 分页导航 -->
+    <!-- Bootstrap 分页导航 -->
+    <nav>
+        <ul class="pagination justify-content-center" id="pagination">
+        </ul>
+    </nav>
+</div>
+
+<script>
+    // 记录当前的搜索条件
+    var currentSearchLeague = null;
+    var currentSearchSquare = null;
+    var currentCompanyName = null;
+    var currentUpDownValue = null;
+    var currentInitCalculationValue1 = null;
+    var currentInitCalculationValue2 = null;
+    var currentInitCalculationValue3 = null;
+    var currentFinalCalculationValue1 = null;
+    var currentFinalCalculationValue2 = null;
+    var currentFinalCalculationValue3 = null;
+
+
+    $(document).ready(function () {
+        // 初始加载第一页数据
+        loadData(1, currentSearchLeague, currentSearchSquare, currentCompanyName, currentUpDownValue, currentInitCalculationValue1, currentInitCalculationValue2, currentInitCalculationValue3,
+            currentFinalCalculationValue1, currentFinalCalculationValue2, currentFinalCalculationValue3);
+
+        // 绑定查询按钮的点击事件
+        $('#searchBtn').click(function () {
+            currentSearchLeague = $('#searchLeague').val();
+            currentSearchSquare = $('#searchSquare').val();
+            currentCompanyName = $('#companyName').val();
+            currentUpDownValue = $('#upDownValue').val();
+            currentInitCalculationValue1 = $('#initCalculationValue1').val();
+            currentInitCalculationValue2 = $('#initCalculationValue2').val();
+            currentInitCalculationValue3 = $('#initCalculationValue3').val();
+            currentFinalCalculationValue1 = $('#finalCalculationValue1').val();
+            currentFinalCalculationValue2 = $('#finalCalculationValue2').val();
+            currentFinalCalculationValue3 = $('#finalCalculationValue3').val();
+            loadData(1, currentSearchLeague, currentSearchSquare, currentCompanyName, currentUpDownValue, currentInitCalculationValue1, currentInitCalculationValue2, currentInitCalculationValue3,
+                currentFinalCalculationValue1, currentFinalCalculationValue2, currentFinalCalculationValue3);
+        });
+    });
+
+    function loadData(pageNum, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                      finalCalculationValue1, finalCalculationValue2, finalCalculationValue3) {
+        $.ajax({
+            type: 'GET',
+            url: 'http://localhost:8080/footmatch/queryInfo',
+            data: {
+                pageNum: pageNum,
+                searchLeague: searchLeague,
+                searchSquare: searchSquare,
+                companyName: companyName,
+                upDownValue: upDownValue,
+                initCalculationValue1: initCalculationValue1,
+                initCalculationValue2: initCalculationValue2,
+                initCalculationValue3: initCalculationValue3,
+                finalCalculationValue1: finalCalculationValue1,
+                finalCalculationValue2: finalCalculationValue2,
+                finalCalculationValue3: finalCalculationValue3
+            },
+            success: function (data) {
+                // 清空表格和分页导航
+                $('#matches tbody').empty();
+                $('#pagination').empty();
+
+                // 填充表格数据
+                data.list.forEach(item => {
+                    const row = document.createElement('tr');
+
+                    const cell1 = document.createElement('td');
+                    // 创建一个链接，链接到详细信息页面，把比赛场次ID作为参数
+                    const link = document.createElement('a');
+                    link.href = 'details.html?id=' + item.competitionId;
+                    link.textContent = '查看详情';
+                    cell1.appendChild(link);
+                    row.appendChild(cell1);
+
+                    const cell2 = document.createElement('td');
+                    cell2.textContent = item.competitionId;
+                    row.appendChild(cell2);
+
+
+                    const cell3 = document.createElement('td');
+                    cell3.textContent = item.league;
+                    row.appendChild(cell3);
+
+                    const cell4 = document.createElement('td');
+                    cell4.textContent = item.dateTime;
+                    row.appendChild(cell4);
+
+                    const cell5 = document.createElement('td');
+                    cell5.textContent = item.status;
+                    row.appendChild(cell5);
+
+                    const cell6 = document.createElement('td');
+                    cell6.textContent = item.homeTeam;
+                    row.appendChild(cell6);
+
+                    const cell7 = document.createElement('td');
+                    cell7.textContent = item.score;
+                    row.appendChild(cell7);
+
+                    const cell8 = document.createElement('td');
+                    cell8.textContent = item.awayTeam;
+                    row.appendChild(cell8);
+
+                    const cell9 = document.createElement('td');
+                    cell9.textContent = item.halfTimeScore;
+                    row.appendChild(cell9);
+
+                    const cell10 = document.createElement('td');
+                    cell10.textContent = item.square;
+                    row.appendChild(cell10);
+
+                    $('#matches tbody').append(row);
+                });
+
+                var pagination = $('#pagination');
+
+                var firstPageLi = $('<li class="page-item">').append($('<a class="page-link">').attr('href', '#').text('首页'));
+                firstPageLi.click(function () {
+                    loadData(1, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                        finalCalculationValue1, finalCalculationValue2, finalCalculationValue3);
+                });
+                pagination.append(firstPageLi);
+
+                var prevPageLi = $('<li class="page-item">').append($('<a class="page-link">').attr('href', '#').text('上一页'));
+                prevPageLi.click(function () {
+                    if(pageNum > 1){
+                        loadData(pageNum-1, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                            finalCalculationValue1, finalCalculationValue2, finalCalculationValue3);
+                    }
+                });
+                pagination.append(prevPageLi);
+
+                var startPage = Math.max(1, pageNum - 2);
+                var endPage = Math.min(data.pages, pageNum + 2);
+
+                var totalVisiblePages = endPage - startPage + 1;
+                if (totalVisiblePages < 5 && data.pages >= 5) {
+                    if (pageNum <= 2) {
+                        endPage = 5;
+                    } else {
+                        startPage = data.pages - 4;
+                    }
+                }
+
+                for (var i = startPage; i <= endPage; i++) {
+                    var li = $('<li class="page-item">').append($('<a class="page-link">').attr('href', '#').text(i));
+                    li.click(function () {
+                        var clickedPageNum = parseInt($(this).text());
+                        loadData(clickedPageNum, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                            finalCalculationValue1, finalCalculationValue2, finalCalculationValue3);
+                    });
+                    if (i == pageNum) {
+                        li.addClass('active');
+                    }
+                    pagination.append(li);
+                }
+
+                var nextPageLi = $('<li class="page-item">').append($('<a class="page-link">').attr('href', '#').text('下一页'));
+                nextPageLi.click(function () {
+                    if(pageNum < data.pages){
+                        loadData(pageNum+1, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                            finalCalculationValue1, finalCalculationValue2, finalCalculationValue3);
+                    }
+                });
+                pagination.append(nextPageLi);
+
+                var lastPageLi = $('<li class="page-item">').append($('<a class="page-link">').attr('href', '#').text('末页'));
+                lastPageLi.click(function () {
+                    loadData(data.pages, searchLeague, searchSquare, companyName, upDownValue, initCalculationValue1, initCalculationValue2, initCalculationValue3,
+                        finalCalculationValue1, finalCalculationValue2, finalCalculationValue3);
+                });
+                pagination.append(lastPageLi);
+            },
+            error: function (error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+</script>
+</body>
+</html>

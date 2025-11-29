@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sun.foot.mapper.DistributedTaskLockMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.sun.foot.entity.DistributedTaskLock">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="task_key" property="taskKey" jdbcType="VARCHAR"/>
+        <result column="module_name" property="moduleName" jdbcType="VARCHAR"/>
+        <result column="node_id" property="nodeId" jdbcType="VARCHAR"/>
+        <result column="is_locked" property="isLocked" jdbcType="BOOLEAN"/>
+        <result column="lock_time" property="lockTime" jdbcType="TIMESTAMP"/>
+        <result column="heartbeat_time" property="heartbeatTime" jdbcType="TIMESTAMP"/>
+        <result column="version" property="version" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 基本字段列表 -->
+    <sql id="Base_Column_List">
+        id, task_key, module_name, node_id, is_locked, lock_time,
+        heartbeat_time, version, created_at, updated_at
+    </sql>
+
+    <!-- 尝试获取分布式锁 -->
+    <!-- 核心SQL：只更新未被锁定的记录，利用数据库行级锁保证原子性 -->
+    <update id="tryLock">
+        UPDATE distributed_task_locks
+        SET is_locked = TRUE,
+            node_id = #{nodeId},
+            lock_time = NOW(),
+            heartbeat_time = NOW(),
+            version = version + 1
+        WHERE task_key = #{taskKey}
+          AND is_locked = FALSE
+    </update>
+
+    <!-- 释放分布式锁 -->
+    <!-- 只能释放自己持有的锁，通过node_id校验 -->
+    <update id="releaseLock">
+        UPDATE distributed_task_locks
+        SET is_locked = FALSE,
+            lock_time = NULL,
+            version = version + 1
+        WHERE task_key = #{taskKey}
+          AND node_id = #{nodeId}
+    </update>
+
+    <!-- 更新心跳时间 -->
+    <!-- 只更新自己持有且正在锁定的记录 -->
+    <update id="updateHeartbeat">
+        UPDATE distributed_task_locks
+        SET heartbeat_time = NOW(),
+            version = version + 1
+        WHERE task_key = #{taskKey}
+          AND node_id = #{nodeId}
+          AND is_locked = 1
+    </update>
+
+    <!-- 查询指定任务的锁状态 -->
+    <select id="getLockStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM distributed_task_locks
+        WHERE task_key = #{taskKey}
+    </select>
+
+    <!-- 初始化任务锁记录 -->
+    <!-- 使用INSERT IGNORE避免重复插入 -->
+    <insert id="initTaskLock">
+        INSERT IGNORE INTO distributed_task_locks
+        (task_key, module_name, node_id, is_locked, version)
+        VALUES (#{taskKey}, #{moduleName}, '', FALSE, 0)
+    </insert>
+
+    <!-- 清理过期锁 -->
+    <!-- 清理心跳时间超过指定时间的锁定记录 -->
+    <update id="cleanExpiredLocks">
+        UPDATE distributed_task_locks
+        SET is_locked = FALSE,
+            lock_time = NULL,
+            heartbeat_time = NULL,
+            node_id = '',
+            version = version + 1
+        WHERE is_locked = 1
+          AND heartbeat_time &lt; #{expireTime}
+    </update>
+
+    <!-- 获取所有任务状态 -->
+    <select id="getAllTaskStatus" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM distributed_task_locks
+        ORDER BY module_name, task_key
+    </select>
+
+</mapper>
