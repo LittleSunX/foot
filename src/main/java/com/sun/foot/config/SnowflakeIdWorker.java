@@ -1,5 +1,8 @@
 package com.sun.foot.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -13,6 +16,13 @@ import java.net.UnknownHostException;
  * 4. 单节点毫秒内 4096 序列自增
  */
 public class SnowflakeIdWorker {
+
+    private static final Logger log = LoggerFactory.getLogger(SnowflakeIdWorker.class);
+
+    /**
+     * 时钟回拨最大容忍时间（毫秒）
+     */
+    private static final long MAX_BACKWARD_MS = 5L;
 
     /**
      * 开始时间戳（可以固定为项目开始时间）
@@ -70,6 +80,8 @@ public class SnowflakeIdWorker {
 
         this.datacenterId = datacenterId;
         this.workerId = getWorkerIdByIpHash();
+        
+        log.info("Snowflake ID Worker initialized: datacenterId={}, workerId={}", datacenterId, workerId);
     }
 
     /**
@@ -79,10 +91,13 @@ public class SnowflakeIdWorker {
         try {
             String ip = InetAddress.getLocalHost().getHostAddress();
             int hash = ip.hashCode();
-            return Math.abs(hash) % (maxWorkerId + 1);
+            long workerId = Math.abs(hash) % (maxWorkerId + 1);
+            log.info("WorkerId calculated from IP: ip={}, workerId={}", ip, workerId);
+            return workerId;
         } catch (UnknownHostException e) {
-            // 如果获取 IP 失败，使用随机值（低概率）
-            return (long) (Math.random() * (maxWorkerId + 1));
+            // 获取 IP 失败，抛出异常，不应使用随机值
+            log.error("Failed to get local IP address for workerId calculation", e);
+            throw new RuntimeException("Cannot initialize SnowflakeIdWorker: failed to get local IP", e);
         }
     }
 
@@ -95,18 +110,24 @@ public class SnowflakeIdWorker {
         // 检测时钟回拨
         if (timestamp < lastTimestamp) {
             long offset = lastTimestamp - timestamp;
-
-            try {
-                // 企业级稳定方案：阻塞等待 offset 毫秒
-                Thread.sleep(offset);
-                timestamp = currentTime();
-                // 二次校验
-                if (timestamp < lastTimestamp) {
-                    throw new RuntimeException(
-                            "Clock moved backwards. Refusing to generate id for " + offset + " ms");
+            
+            // 如果回拨时间在容忍范围内，等待追上
+            if (offset <= MAX_BACKWARD_MS) {
+                try {
+                    log.warn("Clock moved backwards by {} ms, waiting...", offset);
+                    Thread.sleep(offset);
+                    timestamp = currentTime();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for clock to catch up", e);
                 }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            }
+            
+            // 二次校验，如果仍然回拨则抛出异常
+            if (timestamp < lastTimestamp) {
+                log.error("Clock moved backwards by {} ms, refusing to generate id", offset);
+                throw new RuntimeException(
+                        String.format("Clock moved backwards. Refusing to generate id for %d ms", offset));
             }
         }
 
@@ -134,6 +155,12 @@ public class SnowflakeIdWorker {
     private long nextMillis(long lastTimestamp) {
         long timestamp = currentTime();
         while (timestamp <= lastTimestamp) {
+            // 短暂休眠，避免 CPU 空转
+            try {
+                Thread.sleep(0, 100000); // 休眠 0.1 毫秒
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             timestamp = currentTime();
         }
         return timestamp;
